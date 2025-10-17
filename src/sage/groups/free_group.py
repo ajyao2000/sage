@@ -975,3 +975,129 @@ class FreeGroup_class(CachedRepresentation, Group, ParentLibGAP):
                                       tuple(map(self, relations)), **kwds)
 
     __truediv__ = quotient
+
+from sage.all import DiGraph
+
+def _assign_colors(g):
+    labelList = []
+    edge_colors = {}
+    
+    for (u, v, label) in g.edges(labels = True):
+        if abs(label) == 1:
+            edge_colors.setdefault('red', []).append((u, v, label))
+        elif abs(label) == 2:
+            edge_colors.setdefault('orange', []).append((u, v, label))
+        elif abs(label) == 3:
+            edge_colors.setdefault('yellow', []).append((u, v, label))
+        elif abs(label) == 4:
+            edge_colors.setdefault('green', []).append((u, v, label))
+        elif abs(label) == 5:
+            edge_colors.setdefault('blue', []).append((u, v, label))   
+        elif abs(label) == 6:
+            edge_colors.setdefault('purple', []).append((u, v, label))     
+            
+    return edge_colors
+
+def _word_to_element(word, F):
+    gens = F.gens_dict()
+    el = F.one()
+    for c in word:
+        if c.isupper():    
+            el *= gens[c.lower()]^-1
+        else:
+            el *= gens[c]
+    return el
+
+def stallings_folding(subsetList):  # Takes in a string of elements from freegroup
+    
+    allElements = set()
+    
+    for element in subsetList:
+        for c in element:
+            allElements.add(c.lower())
+    
+    g = DiGraph({0: []})
+    print(allElements)
+    
+    F = FreeGroup(allElements)
+    
+    vertexNumber = 0
+
+    for i in range(len(subsetList)):
+        
+        thing = _word_to_element(subsetList[i], F)
+        tietzeList = thing.Tietze()
+
+        for j in range (len(tietzeList)):
+            label = abs(tietzeList[j])
+            
+            if(j == len(tietzeList)-1):
+                if(tietzeList[j] > 0):
+                    g.add_edge(vertexNumber, 0, label)
+                else:
+                    g.add_edge(0, vertexNumber, label)    
+                break
+
+            vertexNumber += 1
+            if(j == 0):
+                if(tietzeList[j] > 0):
+                    g.add_edge(0, vertexNumber, label)
+                else:
+                    g.add_edge(vertexNumber, 0, label)   
+
+
+            else:
+                if(tietzeList[j] > 0):
+                    g.add_edge(vertexNumber-1, vertexNumber, label)
+                else:
+                    g.add_edge(vertexNumber, vertexNumber-1, label)
+
+                    
+    edge_colors = _assign_colors(g)
+    print(edge_colors)
+
+    g.show(graph_border = True, edge_labels = True, edge_colors = edge_colors, vertex_labels = True, vertex_size = 300, figsize = 5)
+
+    existsFolding = True
+    while existsFolding:
+        existsFolding = False   
+
+        edges_dict = {}
+
+        for (u, v, label) in g.edges(labels=True):
+            edges_dict.setdefault((u, label), []).append((u, v, abs(label)))
+        
+        for edge_list in edges_dict.values():
+            
+            if len(edge_list) > 1:
+                existsFolding = True
+
+                e1 = edge_list[0]
+                e2 = edge_list[1]
+                print("folded " + str(e1) + " " + str(e2))
+                g.add_edge(e1[1], e2[1])
+                g.contract_edge((e1[1], e2[1]))
+                
+                edge_colors = _assign_colors(g)
+                #g.show(graph_border = True, edge_colors = edge_colors, figsize = 6)
+            
+        edges_dict2 = {}
+
+        for (u, v, label) in g.edges(labels=True):
+            edges_dict2.setdefault((v, label), []).append((u, v, abs(label)))
+             
+        for edge_list in edges_dict2.values():
+            
+            if len(edge_list) > 1:
+                existsFolding = True
+
+                e1 = edge_list[0]
+                e2 = edge_list[1]
+                print("folded " + str(e1) + " " + str(e2))
+                g.add_edge(e1[0], e2[0])
+                g.contract_edge((e1[0], e2[0]))
+    
+                edge_colors = _assign_colors(g)
+                #g.show(graph_border = True, edge_colors = edge_colors, figsize = 6)
+                
+    g.show(graph_border = True, edge_colors = edge_colors, figsize = 6)
